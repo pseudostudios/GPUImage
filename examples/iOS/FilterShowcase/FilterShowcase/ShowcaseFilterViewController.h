@@ -128,6 +128,7 @@ typedef enum {
     GPUImageVideoCamera *videoCamera;
     GPUImageOutput<GPUImageInput> *filter;
     GPUImagePicture *sourcePicture;
+    GPUImageMovie *sourceMovie;
     GPUImageShowcaseFilterType filterType;
     GPUImageUIElement *uiElementInput;
     

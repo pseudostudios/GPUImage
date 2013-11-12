@@ -146,6 +146,9 @@
 
 - (void)dealloc
 {
+    NSLog(@"%@ dealloc", self.url.lastPathComponent);
+    [self endProcessing];
+    
     runSynchronouslyOnVideoProcessingQueue(^{
         [displayLink removeFromRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
         displayLink = nil;
@@ -186,10 +189,13 @@
     NSDictionary *inputOptions = [NSDictionary dictionaryWithObject:[NSNumber numberWithBool:YES] forKey:AVURLAssetPreferPreciseDurationAndTimingKey];
     AVURLAsset *inputAsset = [[AVURLAsset alloc] initWithURL:self.url options:inputOptions];
     
-    GPUImageMovie __block *blockSelf = self;
-    
+    NSLog(@"Retain count is %ld", CFGetRetainCount((__bridge CFTypeRef)self));
+
+    __unsafe_unretained GPUImageMovie *blockSelf = self;
+
+    NSLog(@"Retain count is %ld", CFGetRetainCount((__bridge CFTypeRef)self));
+
     [inputAsset loadValuesAsynchronouslyForKeys:[NSArray arrayWithObject:@"tracks"] completionHandler: ^{
-            //runSynchronouslyOnVideoProcessingQueue(^{
             NSError *error = nil;
             AVKeyValueStatus tracksStatus = [inputAsset statusOfValueForKey:@"tracks" error:&error];
             if (!tracksStatus == AVKeyValueStatusLoaded)
@@ -197,10 +203,16 @@
                 return;
             }
             blockSelf.asset = inputAsset;
-            [blockSelf processAsset];
-            blockSelf = nil;
-        //});
+//            runSynchronouslyOnVideoProcessingQueue(^{
+                [blockSelf processAsset];
+        
+                NSLog(@"Retain count is %ld", CFGetRetainCount((__bridge CFTypeRef)self));
+
+//            });
     }];
+    
+    NSLog(@"Retain count is %ld", CFGetRetainCount((__bridge CFTypeRef)self));
+
 }
 
 - (AVAssetReader*)createAssetReader
@@ -372,7 +384,9 @@
                 previousFrameTime = currentSampleTime;
                 previousActualFrameTime = CFAbsoluteTimeGetCurrent();
             }
-
+            
+            NSLog(@"%f", previousActualFrameTime);
+            
             __unsafe_unretained GPUImageMovie *weakSelf = self;
             runSynchronouslyOnVideoProcessingQueue(^{
                 [weakSelf processMovieFrame:sampleBufferRef];
@@ -714,6 +728,8 @@
 
     NSAssert(status == GL_FRAMEBUFFER_COMPLETE, @"Incomplete filter FBO: %d", status);
     glBindTexture(GL_TEXTURE_2D, 0);
+    
+    NSLog(@"%@ createmovietexture %d",  self.url.lastPathComponent, outputTexture);
 
 }
 
@@ -730,6 +746,8 @@
 
         if (outputTexture)
         {
+            NSLog(@"%@ deletedmovietexture %d",  self.url.lastPathComponent, outputTexture);
+
             glDeleteTextures(1, &outputTexture);
             outputTexture = 0;
         }

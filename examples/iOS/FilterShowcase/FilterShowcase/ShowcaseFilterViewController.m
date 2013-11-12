@@ -1308,24 +1308,43 @@
         
         if (needsSecondImage)
         {
-			UIImage *inputImage;
-			
-			if (filterType == GPUIMAGE_MASK) 
-			{
-				inputImage = [UIImage imageNamed:@"mask"];
-			}
-            /*
-			else if (filterType == GPUIMAGE_VORONOI) {
-                inputImage = [UIImage imageNamed:@"voroni_points.png"];
-            }*/
-            else {
-				// The picture is only used for two-image blend filters
-				inputImage = [UIImage imageNamed:@"WID-small.jpg"];
-			}
-			
-            sourcePicture = [[GPUImagePicture alloc] initWithImage:inputImage smoothlyScaleOutput:YES];
-            [sourcePicture processImage];            
-            [sourcePicture addTarget:filter];
+            if (filterType == GPUIMAGE_CHROMAKEY)
+            {
+                NSURL * url = [[NSBundle mainBundle] URLForResource:@"CrowdFans_12.mov" withExtension:nil];
+
+                sourceMovie = [[GPUImageMovie alloc] initWithURL:url];
+                sourceMovie.shouldRepeat = YES;
+                sourceMovie.playAtActualSpeed = YES;
+                [sourceMovie startProcessing];
+                
+                [videoCamera removeAllTargets];
+                [sourceMovie addTarget:filter];
+                [videoCamera addTarget:filter];
+                
+                
+            }
+            else
+            {
+                UIImage *inputImage;
+                
+                if (filterType == GPUIMAGE_MASK)
+                {
+                    inputImage = [UIImage imageNamed:@"mask"];
+                }
+                /*
+                 else if (filterType == GPUIMAGE_VORONOI) {
+                 inputImage = [UIImage imageNamed:@"voroni_points.png"];
+                 }*/
+                else {
+                    // The picture is only used for two-image blend filters
+                    inputImage = [UIImage imageNamed:@"WID-small.jpg"];
+                }
+                
+                sourcePicture = [[GPUImagePicture alloc] initWithImage:inputImage smoothlyScaleOutput:YES];
+                [sourcePicture processImage];            
+                [sourcePicture addTarget:filter];
+            }
+
         }
 
         
@@ -1527,7 +1546,7 @@
                 }
                 
             }];
-            
+
             [videoCamera addTarget:filterView];
         }
         else
