@@ -1,7 +1,15 @@
+#include <libkern/OSAtomic.h>
+
 #import "GPUImageMovie.h"
 #import "GPUImageMovieWriter.h"
 #import "GPUImageFilter.h"
 #import "GPUImageVideoCamera.h"
+
+#define SPIN_LOCK_LOCK(x) \
+while(OSAtomicCompareAndSwapInt(0, 1, x) == false);
+
+#define SPIN_LOCK_UNLOCK(x) \
+*x = 0;
 
 @interface GPUImageMovie () <AVPlayerItemOutputPullDelegate>
 {
@@ -25,6 +33,8 @@
     const GLfloat *_preferredConversion;
 
     int imageBufferWidth, imageBufferHeight;
+    
+    int _spinLock;
 }
 
 - (void)processAsset;
@@ -146,7 +156,6 @@
 
 - (void)dealloc
 {
-    NSLog(@"%@ dealloc", self.url.lastPathComponent);
     [self endProcessing];
     
     runSynchronouslyOnVideoProcessingQueue(^{
@@ -190,19 +199,15 @@
     AVURLAsset *inputAsset = [[AVURLAsset alloc] initWithURL:self.url options:inputOptions];
     
     __unsafe_unretained GPUImageMovie *blockSelf = self;
-
+    
     [inputAsset loadValuesAsynchronouslyForKeys:[NSArray arrayWithObject:@"tracks"] completionHandler: ^{
             NSError *error = nil;
             AVKeyValueStatus tracksStatus = [inputAsset statusOfValueForKey:@"tracks" error:&error];
-            if (!tracksStatus == AVKeyValueStatusLoaded)
+            if (tracksStatus == AVKeyValueStatusLoaded)
             {
-                return;
-            }
-            blockSelf.asset = inputAsset;
-//            runSynchronouslyOnVideoProcessingQueue(^{
+                blockSelf.asset = inputAsset;
                 [blockSelf processAsset];
-        
-//            });
+            }
     }];
 
 }
@@ -353,6 +358,7 @@
 
 - (BOOL)readNextVideoFrameFromOutput:(AVAssetReaderOutput *)readerVideoTrackOutput;
 {
+    SPIN_LOCK_LOCK(&_spinLock);
     if (reader.status == AVAssetReaderStatusReading && ! videoEncodingIsFinished)
     {
         CMSampleBufferRef sampleBufferRef = [readerVideoTrackOutput copyNextSampleBuffer];
@@ -378,12 +384,19 @@
                 previousActualFrameTime = CFAbsoluteTimeGetCurrent();
             }
             
+            SPIN_LOCK_UNLOCK(&_spinLock);
             __unsafe_unretained GPUImageMovie *weakSelf = self;
             runSynchronouslyOnVideoProcessingQueue(^{
-                [weakSelf processMovieFrame:sampleBufferRef];
-                CMSampleBufferInvalidate(sampleBufferRef);
-                CFRelease(sampleBufferRef);
+                SPIN_LOCK_LOCK(&_spinLock);
+                if (reader.status == AVAssetReaderStatusReading)
+                {
+                    [weakSelf processMovieFrame:sampleBufferRef];
+                    CMSampleBufferInvalidate(sampleBufferRef);
+                    CFRelease(sampleBufferRef);
+                }
+                SPIN_LOCK_UNLOCK(&_spinLock);
             });
+
 
             return YES;
         }
@@ -403,6 +416,9 @@
             [self endProcessing];
         }
     }
+    
+    SPIN_LOCK_UNLOCK(&_spinLock);
+
     return NO;
 }
 
@@ -649,10 +665,17 @@
 
 - (void)cancelProcessing
 {
-    if (reader) {
+    SPIN_LOCK_LOCK(&_spinLock);
+
+    if (reader)
+    {
         [reader cancelReading];
     }
+    
     [self endProcessing];
+    
+    SPIN_LOCK_UNLOCK(&_spinLock);
+    
 }
 
 - (void)convertYUVToRGBOutput;
