@@ -189,11 +189,7 @@
     NSDictionary *inputOptions = [NSDictionary dictionaryWithObject:[NSNumber numberWithBool:YES] forKey:AVURLAssetPreferPreciseDurationAndTimingKey];
     AVURLAsset *inputAsset = [[AVURLAsset alloc] initWithURL:self.url options:inputOptions];
     
-    NSLog(@"Retain count is %ld", CFGetRetainCount((__bridge CFTypeRef)self));
-
     __unsafe_unretained GPUImageMovie *blockSelf = self;
-
-    NSLog(@"Retain count is %ld", CFGetRetainCount((__bridge CFTypeRef)self));
 
     [inputAsset loadValuesAsynchronouslyForKeys:[NSArray arrayWithObject:@"tracks"] completionHandler: ^{
             NSError *error = nil;
@@ -206,12 +202,8 @@
 //            runSynchronouslyOnVideoProcessingQueue(^{
                 [blockSelf processAsset];
         
-                NSLog(@"Retain count is %ld", CFGetRetainCount((__bridge CFTypeRef)self));
-
 //            });
     }];
-    
-    NSLog(@"Retain count is %ld", CFGetRetainCount((__bridge CFTypeRef)self));
 
 }
 
@@ -227,12 +219,13 @@
     [assetReader addOutput:readerVideoTrackOutput];
 
     NSArray *audioTracks = [self.asset tracksWithMediaType:AVMediaTypeAudio];
-    BOOL shouldRecordAudioTrack = (([audioTracks count] > 0) && (self.audioEncodingTarget != nil) );
+    BOOL shouldRecordAudioTrack = (([audioTracks count] > 0) && ([self.audioEncodingTargets count] > 0) );
     AVAssetReaderTrackOutput *readerAudioTrackOutput = nil;
 
     if (shouldRecordAudioTrack)
     {
-        [self.audioEncodingTarget setShouldInvalidateAudioSampleWhenDone:YES];
+        for (GPUImageMovieWriter * audioTarget in self.audioEncodingTargets)
+            [audioTarget setShouldInvalidateAudioSampleWhenDone:YES];
         
         // This might need to be extended to handle movies with more than one audio track
         AVAssetTrack* audioTrack = [audioTracks objectAtIndex:0];
@@ -385,8 +378,6 @@
                 previousActualFrameTime = CFAbsoluteTimeGetCurrent();
             }
             
-            NSLog(@"%f", previousActualFrameTime);
-            
             __unsafe_unretained GPUImageMovie *weakSelf = self;
             runSynchronouslyOnVideoProcessingQueue(^{
                 [weakSelf processMovieFrame:sampleBufferRef];
@@ -423,7 +414,10 @@
         if (audioSampleBufferRef)
         {
             //NSLog(@"read an audio frame: %@", CFBridgingRelease(CMTimeCopyDescription(kCFAllocatorDefault, CMSampleBufferGetOutputPresentationTimeStamp(audioSampleBufferRef))));
-            [self.audioEncodingTarget processAudioBuffer:audioSampleBufferRef];
+            
+            for (GPUImageMovieWriter * audioTarget in self.audioEncodingTargets)
+                [audioTarget processAudioBuffer:audioSampleBufferRef];
+            
             CFRelease(audioSampleBufferRef);
             return YES;
         }
@@ -728,8 +722,6 @@
 
     NSAssert(status == GL_FRAMEBUFFER_COMPLETE, @"Incomplete filter FBO: %d", status);
     glBindTexture(GL_TEXTURE_2D, 0);
-    
-    NSLog(@"%@ createmovietexture %d",  self.url.lastPathComponent, outputTexture);
 
 }
 
@@ -746,8 +738,6 @@
 
         if (outputTexture)
         {
-            NSLog(@"%@ deletedmovietexture %d",  self.url.lastPathComponent, outputTexture);
-
             glDeleteTextures(1, &outputTexture);
             outputTexture = 0;
         }

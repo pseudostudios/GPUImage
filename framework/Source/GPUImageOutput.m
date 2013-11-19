@@ -75,7 +75,6 @@ void reportAvailableMemoryForGPUImage(NSString *tag)
 
 @synthesize shouldSmoothlyScaleOutput = _shouldSmoothlyScaleOutput;
 @synthesize shouldIgnoreUpdatesToThisTarget = _shouldIgnoreUpdatesToThisTarget;
-@synthesize audioEncodingTarget = _audioEncodingTarget;
 @synthesize targetToIgnoreForUpdates = _targetToIgnoreForUpdates;
 @synthesize frameProcessingCompletionBlock = _frameProcessingCompletionBlock;
 @synthesize enabled = _enabled;
@@ -95,6 +94,8 @@ void reportAvailableMemoryForGPUImage(NSString *tag)
     targetTextureIndices = [[NSMutableArray alloc] init];
     _enabled = YES;
     allTargetsWantMonochromeData = YES;
+    
+    audioEncodingTargets = [[NSMutableArray alloc] init];
     
     // set default texture options
     _outputTextureOptions.minFilter = GL_LINEAR;
@@ -451,13 +452,27 @@ void reportAvailableMemoryForGPUImage(NSString *tag)
 #pragma mark -
 #pragma mark Accessors
 
-- (void)setAudioEncodingTarget:(GPUImageMovieWriter *)newValue;
-{    
-    _audioEncodingTarget = newValue;
-    if( ! _audioEncodingTarget.hasAudioTrack )
+- (NSArray *) audioEncodingTargets
+{
+    return audioEncodingTargets;
+}
+
+- (void) addAudioEncodingTarget:(GPUImageMovieWriter *) audioEncodingTarget
+{
+    if ([audioEncodingTargets containsObject:audioEncodingTarget] == NO)
     {
-        _audioEncodingTarget.hasAudioTrack = YES;
+        [audioEncodingTargets addObject:audioEncodingTarget];
+        
+        if( ! audioEncodingTarget.hasAudioTrack )
+        {
+            audioEncodingTarget.hasAudioTrack = YES;
+        }
     }
+}
+
+- (void) removeAudioEncodingTarget:(GPUImageMovieWriter *) audioEncodingTarget
+{
+    [audioEncodingTargets removeObject:audioEncodingTarget];
 }
 
 @end

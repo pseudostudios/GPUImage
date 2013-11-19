@@ -822,7 +822,8 @@ NSString *const kGPUImageYUVVideoRangeConversionForLAFragmentShaderString = SHAD
 
 - (void)processAudioSampleBuffer:(CMSampleBufferRef)sampleBuffer;
 {
-    [self.audioEncodingTarget processAudioBuffer:sampleBuffer]; 
+    for (GPUImageMovieWriter * audioTarget in self.audioEncodingTargets)
+        [audioTarget processAudioBuffer:sampleBuffer];
 }
 
 - (void)convertYUVToRGBOutput;
@@ -968,18 +969,22 @@ NSString *const kGPUImageYUVVideoRangeConversionForLAFragmentShaderString = SHAD
 #pragma mark -
 #pragma mark Accessors
 
-- (void)setAudioEncodingTarget:(GPUImageMovieWriter *)newValue;
+- (void) addAudioEncodingTarget:(GPUImageMovieWriter *)audioEncodingTarget
 {
-    if (newValue) {
-        /* Add audio inputs and outputs, if necessary */
-        addedAudioInputsDueToEncodingTarget |= [self addAudioInputsAndOutputs];
-    } else if (addedAudioInputsDueToEncodingTarget) {
+    addedAudioInputsDueToEncodingTarget |= [self addAudioInputsAndOutputs];
+    
+    [super addAudioEncodingTarget:audioEncodingTarget];
+}
+
+- (void) removeAudioEncodingTarget:(GPUImageMovieWriter *)audioEncodingTarget
+{
+    if (addedAudioInputsDueToEncodingTarget) {
         /* Remove audio inputs and outputs, if they were added by previously setting the audio encoding target */
         [self removeAudioInputsAndOutputs];
         addedAudioInputsDueToEncodingTarget = NO;
     }
-    
-    [super setAudioEncodingTarget:newValue];
+
+    [super removeAudioEncodingTarget:audioEncodingTarget];
 }
 
 - (void)updateOrientationSendToTargets;

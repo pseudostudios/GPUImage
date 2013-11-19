@@ -60,11 +60,13 @@ void reportAvailableMemoryForGPUImage(NSString *tag);
     BOOL shouldConserveMemoryForNextFrame;
     
     BOOL allTargetsWantMonochromeData;
+    
+    NSMutableArray * audioEncodingTargets;
 }
 
 @property(readwrite, nonatomic) BOOL shouldSmoothlyScaleOutput;
 @property(readwrite, nonatomic) BOOL shouldIgnoreUpdatesToThisTarget;
-@property(readwrite, nonatomic, retain) GPUImageMovieWriter *audioEncodingTarget;
+@property(nonatomic,readonly) NSArray * audioEncodingTargets;
 @property(readwrite, nonatomic, unsafe_unretained) id<GPUImageInput> targetToIgnoreForUpdates;
 @property(nonatomic, copy) void(^frameProcessingCompletionBlock)(GPUImageOutput*, CMTime);
 @property(nonatomic) BOOL enabled;
@@ -106,6 +108,12 @@ void reportAvailableMemoryForGPUImage(NSString *tag);
 /** Removes all targets.
  */
 - (void)removeAllTargets;
+
+/// @name Manage the audio encoding targets
+
+- (void) addAudioEncodingTarget:(GPUImageMovieWriter *) audioEncodingTarget;
+- (void) removeAudioEncodingTarget:(GPUImageMovieWriter *) audioEncodingTarget;
+
 
 /// @name Manage the output texture
 

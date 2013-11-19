@@ -51,12 +51,13 @@
     [assetReader addOutput:readerVideoOutput];
 
     NSArray *audioTracks = [_compositon tracksWithMediaType:AVMediaTypeAudio];
-    BOOL shouldRecordAudioTrack = (([audioTracks count] > 0) && (self.audioEncodingTarget != nil) );
+    BOOL shouldRecordAudioTrack = (([audioTracks count] > 0) && ([self.audioEncodingTargets count] > 0) );
     AVAssetReaderAudioMixOutput *readerAudioOutput = nil;
 
     if (shouldRecordAudioTrack)
     {
-        [self.audioEncodingTarget setShouldInvalidateAudioSampleWhenDone:YES];
+        for (GPUImageMovieWriter * audioTarget in self.audioEncodingTargets)
+            [audioTarget setShouldInvalidateAudioSampleWhenDone:YES];
         
         readerAudioOutput = [AVAssetReaderAudioMixOutput assetReaderAudioMixOutputWithAudioTracks:audioTracks audioSettings:nil];
         readerAudioOutput.audioMix = self.audioMix;
